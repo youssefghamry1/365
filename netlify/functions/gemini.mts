@@ -4,7 +4,6 @@ let aiClient: GoogleGenAI | null = null;
 function getAiClient(): GoogleGenAI {
   if (!aiClient) {
     aiClient = new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY || '',
       httpOptions: {
         headers: {
           'User-Agent': 'aistudio-build-netlify',
@@ -67,21 +66,17 @@ function generateFallbackCaption(body: any): string {
 #مصر #تسويق #${brand.replace(/[\s\W]+/g, '_')} #خدمات_مصر #جودة_عالية`;
 }
 
-export const handler = async (event: any) => {
+export default async (req: Request): Promise<Response> => {
   // Handle CORS preflight
-  if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 204,
-      headers: CORS_HEADERS,
-      body: '',
-    };
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: CORS_HEADERS });
   }
 
-  const path = event.path || '';
+  const path = new URL(req.url).pathname;
   let body: any = {};
-  if (event.body) {
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
     try {
-      body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
+      body = await req.json();
     } catch {
       body = {};
     }
@@ -89,15 +84,11 @@ export const handler = async (event: any) => {
 
   // Health check endpoint
   if (path.endsWith('/health') || path.endsWith('/api/health')) {
-    return {
-      statusCode: 200,
-      headers: CORS_HEADERS,
-      body: JSON.stringify({
+    return new Response(JSON.stringify({
         status: 'ok',
         platform: 'netlify-functions',
         hasKey: Boolean(process.env.GEMINI_API_KEY),
-      }),
-    };
+      }), { status: 200, headers: CORS_HEADERS });
   }
 
   // 1. Analyze Client
@@ -105,11 +96,7 @@ export const handler = async (event: any) => {
     try {
       const { companyOverview } = body;
       if (!companyOverview || typeof companyOverview !== 'string') {
-        return {
-          statusCode: 400,
-          headers: CORS_HEADERS,
-          body: JSON.stringify({ error: 'يرجى تقديم نبذة عن الشركة' }),
-        };
+        return new Response(JSON.stringify({ error: 'يرجى تقديم نبذة عن الشركة' }), { status: 400, headers: CORS_HEADERS });
       }
 
       const ai = getAiClient();
@@ -147,18 +134,10 @@ export const handler = async (event: any) => {
       });
 
       const outputText = response.text || '{}';
-      return {
-        statusCode: 200,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({ profile: JSON.parse(outputText) }),
-      };
+      return new Response(JSON.stringify({ profile: JSON.parse(outputText) }), { status: 200, headers: CORS_HEADERS });
     } catch (error: any) {
       console.error('Netlify function error in analyze-client:', error);
-      return {
-        statusCode: 500,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({ error: error?.message || 'حدث خطأ أثناء تحليل نشاط العميل' }),
-      };
+      return new Response(JSON.stringify({ error: error?.message || 'حدث خطأ أثناء تحليل نشاط العميل' }), { status: 500, headers: CORS_HEADERS });
     }
   }
 
@@ -196,29 +175,17 @@ export const handler = async (event: any) => {
         });
 
         if (response && response.text) {
-          return {
-            statusCode: 200,
-            headers: CORS_HEADERS,
-            body: JSON.stringify({ caption: response.text, source: 'ai' }),
-          };
+          return new Response(JSON.stringify({ caption: response.text, source: 'ai' }), { status: 200, headers: CORS_HEADERS });
         }
       } catch (apiErr: any) {
         console.warn('Gemini generateContent caption failed in Netlify, using smart fallback:', apiErr?.message);
       }
 
       const fallbackCaption = generateFallbackCaption(body);
-      return {
-        statusCode: 200,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({ caption: fallbackCaption, source: 'smart_engine' }),
-      };
+      return new Response(JSON.stringify({ caption: fallbackCaption, source: 'smart_engine' }), { status: 200, headers: CORS_HEADERS });
     } catch (error: any) {
       const fallbackCaption = generateFallbackCaption(body);
-      return {
-        statusCode: 200,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({ caption: fallbackCaption, source: 'smart_engine' }),
-      };
+      return new Response(JSON.stringify({ caption: fallbackCaption, source: 'smart_engine' }), { status: 200, headers: CORS_HEADERS });
     }
   }
 
@@ -260,29 +227,17 @@ export const handler = async (event: any) => {
         });
 
         if (response && response.text) {
-          return {
-            statusCode: 200,
-            headers: CORS_HEADERS,
-            body: JSON.stringify({ prompt: response.text, source: 'ai' }),
-          };
+          return new Response(JSON.stringify({ prompt: response.text, source: 'ai' }), { status: 200, headers: CORS_HEADERS });
         }
       } catch (apiErr: any) {
         console.warn('Gemini refine-prompt failed in Netlify, using fallback:', apiErr?.message);
       }
 
       const refined = generateFallbackRefinedPrompt(postData, clientProfile);
-      return {
-        statusCode: 200,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({ prompt: refined, source: 'smart_engine' }),
-      };
+      return new Response(JSON.stringify({ prompt: refined, source: 'smart_engine' }), { status: 200, headers: CORS_HEADERS });
     } catch (error: any) {
       const refined = generateFallbackRefinedPrompt(body?.postData, body?.clientProfile);
-      return {
-        statusCode: 200,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({ prompt: refined, source: 'smart_engine' }),
-      };
+      return new Response(JSON.stringify({ prompt: refined, source: 'smart_engine' }), { status: 200, headers: CORS_HEADERS });
     }
   }
 
@@ -307,28 +262,20 @@ export const handler = async (event: any) => {
         };
       });
 
-      return {
-        statusCode: 200,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({
+      return new Response(JSON.stringify({
           month,
           monthName,
           count: updatedDays.length,
           updatedDays,
-        }),
-      };
+        }), { status: 200, headers: CORS_HEADERS });
     } catch (error: any) {
-      return {
-        statusCode: 500,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({ error: error?.message || 'فشل توليد دفعة الشهر' }),
-      };
+      return new Response(JSON.stringify({ error: error?.message || 'فشل توليد دفعة الشهر' }), { status: 500, headers: CORS_HEADERS });
     }
   }
 
-  return {
-    statusCode: 404,
-    headers: CORS_HEADERS,
-    body: JSON.stringify({ error: 'Endpoint not found on Netlify function' }),
-  };
+  return new Response(JSON.stringify({ error: 'Endpoint not found on Netlify function' }), { status: 404, headers: CORS_HEADERS });
+};
+
+export const config = {
+  path: ['/api/gemini/*', '/api/health', '/.netlify/functions/gemini', '/.netlify/functions/gemini/*'],
 };
