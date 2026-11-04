@@ -1,0 +1,19 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# Proxy API calls to the serverless Netlify function
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/gemini"
+  status = 200
+
+# React Router / SPA catch-all fallback
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

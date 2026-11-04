@@ -1,0 +1,6 @@
+{
+  "name": "نظام إنتاج 365 بوست سوشيال ميديا | التقويم المصري الذكي",
+  "description": "نظام أتمتة وإدارة 365 منشور سنوي للسوشيال ميديا مع تقويم المناسبات المصرية، برومبتات صور مدمجة، تصدير ملفات Excel وZIP ومكتبة البرومبتات الأساسية.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
